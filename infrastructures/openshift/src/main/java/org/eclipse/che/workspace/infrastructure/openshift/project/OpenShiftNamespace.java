@@ -10,6 +10,8 @@
  */
 package org.eclipse.che.workspace.infrastructure.openshift.project;
 
+import com.google.inject.Inject;
+import com.google.inject.assistedinject.Assisted;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Service;
@@ -21,28 +23,42 @@ import org.eclipse.che.api.workspace.server.spi.InfrastructureException;
 import org.eclipse.che.workspace.infrastructure.openshift.OpenShiftClientFactory;
 
 /**
- * Defines an internal API for managing {@link Project} instance and objects inside it.
+ * Defines an internal API for managing subset of objects inside {@link Project} instance.
  *
  * @author Sergii Leshchenko
  */
-public class OpenShiftProject {
+public class OpenShiftNamespace {
+
+  public static final String CHE_WORKSPACE_LABEL = "CHE_WORKSPACE_ID";
+
   private final OpenShiftPods pods;
   private final OpenShiftServices services;
   private final OpenShiftRoutes routes;
   private final OpenShiftPersistentVolumeClaims pvcs;
 
-  public OpenShiftProject(String name, OpenShiftClientFactory clientFactory)
+  @Inject
+  public OpenShiftNamespace(
+      OpenShiftClientFactory clientFactory, @Assisted String namespace, @Assisted String workspaceId)
       throws InfrastructureException {
-    this.pods = new OpenShiftPods(name, clientFactory);
-    this.services = new OpenShiftServices(name, clientFactory);
-    this.routes = new OpenShiftRoutes(name, clientFactory);
-    this.pvcs = new OpenShiftPersistentVolumeClaims(name, clientFactory);
+    this.pods = new OpenShiftPods(namespace, workspaceId, clientFactory);
+    this.services = new OpenShiftServices(namespace, workspaceId, clientFactory);
+    this.routes = new OpenShiftRoutes(namespace, workspaceId, clientFactory);
+    this.pvcs = new OpenShiftPersistentVolumeClaims(namespace, workspaceId, clientFactory);
 
     try (OpenShiftClient client = clientFactory.create()) {
-      if (get(name, client) == null) {
-        create(name, client);
+      if (get(namespace, client) == null) {
+        create(namespace, client);
       }
     }
+  }
+
+  @Inject
+  public OpenShiftNamespace(
+      OpenShiftClientFactory clientFactory, @Assisted String name) {
+    this.pods = new OpenShiftPods(name, name, clientFactory);
+    this.services = new OpenShiftServices(name, name, clientFactory);
+    this.routes = new OpenShiftRoutes(name, name, clientFactory);
+    this.pvcs = new OpenShiftPersistentVolumeClaims(name, name, clientFactory);
   }
 
   /** Returns object for managing {@link Pod} instances inside project. */
